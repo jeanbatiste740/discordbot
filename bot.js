@@ -25,8 +25,8 @@ client.once(Events.ClientReady, () => {
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;
 
-    // 👉 ON VÉRIFIE LE SALON PAR ID (fiable à 100%)
-    if (message.channel.id !== "1447838699172663338") return;
+    // 👉 Le bot répond uniquement dans le salon avec emoji dans le nom
+    if (message.channel.name !== "『🤖』sacha-ai") return;
 
     const userText = message.content?.trim();
     if (!userText) return;
@@ -35,16 +35,16 @@ client.on(Events.MessageCreate, async (message) => {
     console.log(`💬 ${message.author.tag} : ${userText}`);
 
     try {
-        // ✍️ Le bot affiche "est en train d'écrire..."
+        // ✍️ Le bot montre qu'il est en train d'écrire
         await message.channel.sendTyping();
 
-        // On envoie à ChatGPT
+        // Envoi à ChatGPT
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
                 {
                     role: "system",
-                    content: "Tu es un assistant gentil et utile sur un serveur Discord. Tu parles en français, tu restes poli, simple et clair. Tu peux aussi parler de FiveM, RP et jeux vidéo."
+                    content: "Tu es un assistant utile et gentil sur un serveur Discord. Tu parles en français."
                 },
                 {
                     role: "user",
@@ -60,7 +60,7 @@ client.on(Events.MessageCreate, async (message) => {
 
     } catch (err) {
         console.error("Erreur OpenAI / bot :", err);
-        await message.reply("😅 Oups, j'ai eu une petite erreur technique. Réessaie dans un instant.");
+        await message.reply("😅 Oups, j'ai eu une erreur technique. Réessaie !");
     }
 });
 
