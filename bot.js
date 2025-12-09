@@ -4,11 +4,11 @@ const OpenAI = require("openai");
 const axios = require("axios");
 
 // 🧑‍💻 ID DU PROPRIÉTAIRE (TOI)
-// ⚠️ MET TON VRAI ID DISCORD ICI (le gros nombre)
 const ownerId = "420265433367838721";
 
 // 🔢 Salon compteur TikTok (nom de base à chercher)
-const tiktokCounterChannelBaseName = "abonnés";
+// ➜ Crée un salon texte qui s'appelle EXACTEMENT : 📱│tiktok-abonnés
+const tiktokCounterChannelBaseName = "📱│tiktok-abonnés";
 
 // 🔧 Configuration du client Discord
 const client = new Client({
@@ -26,10 +26,13 @@ const openai = new OpenAI({
 });
 
 // 🔁 Fonction : mettre à jour le salon compteur TikTok
-async function updateTikTokCounter(guild) {
+async function updateTikTokCounter(guild, feedbackChannel = null) {
     try {
         if (!guild) {
             console.log("⚠️ Pas de guild pour update TikTok.");
+            if (feedbackChannel) {
+                await feedbackChannel.send("⚠️ Impossible de trouver le serveur pour mettre à jour TikTok.");
+            }
             return;
         }
 
@@ -39,16 +42,18 @@ async function updateTikTokCounter(guild) {
 
         if (!host || !key || !secUid) {
             console.log("⚠️ RAPIDAPI_HOST / RAPIDAPI_KEY / TIKTOK_SEC_UID manquants dans .env");
+            if (feedbackChannel) {
+                await feedbackChannel.send("⚠️ Config API TikTok incomplète (RAPIDAPI_HOST / RAPIDAPI_KEY / TIKTOK_SEC_UID).");
+            }
             return;
         }
 
-        // On cherche le salon de base
+        // 🔎 On cherche le salon compteur
         let counterChannel = guild.channels.cache.find(
-            (c) => c.name.startsWith("📱│tiktok")
+            (c) => c.name.startsWith("📱│TikTok")
         );
 
         if (!counterChannel) {
-            // Si pas trouvé, on essaie avec le nom de base exact
             counterChannel = guild.channels.cache.find(
                 (c) => c.name === tiktokCounterChannelBaseName
             );
@@ -56,10 +61,13 @@ async function updateTikTokCounter(guild) {
 
         if (!counterChannel) {
             console.log("⚠️ Salon compteur TikTok introuvable.");
+            if (feedbackChannel) {
+                await feedbackChannel.send("⚠️ Salon compteur TikTok introuvable. Crée un salon nommé `📱│tiktok-abonnés`.");
+            }
             return;
         }
 
-        // Appel à l’API TikTok Scraper
+        // 🔗 Appel à l’API TikTok Scraper (endpoint /user/info)
         const url = `https://${host}/user/info?sec_uid=${encodeURIComponent(secUid)}`;
 
         const response = await axios.get(url, {
@@ -70,18 +78,21 @@ async function updateTikTokCounter(guild) {
         });
 
         const data = response.data;
+        console.log("📦 Réponse TikTok (début) :", JSON.stringify(data).slice(0, 400));
 
-        // ⚠️ Cette partie dépend du format de l'API.
-        // Tu devras peut-être adapter selon la doc de l’API.
-        // Exemple hypothétique :
+        // 🧠 Tentatives pour trouver le nombre d'abonnés
         const followers =
             data?.userInfo?.stats?.followerCount ||
             data?.data?.stats?.followerCount ||
             data?.stats?.followerCount ||
+            data?.followerCount ||
             null;
 
-        if (!followers && followers !== 0) {
-            console.log("⚠️ Impossible de lire le nombre d’abonnés TikTok dans la réponse :", data);
+        if (followers === null || followers === undefined) {
+            console.log("⚠️ Impossible de lire le nombre d’abonnés TikTok dans la réponse.");
+            if (feedbackChannel) {
+                await feedbackChannel.send("❌ Impossible de lire le nombre d’abonnés dans la réponse TikTok. Regarde les logs Render pour la structure.");
+            }
             return;
         }
 
@@ -91,11 +102,20 @@ async function updateTikTokCounter(guild) {
         if (counterChannel.name !== newName) {
             await counterChannel.setName(newName);
             console.log(`✅ Salon compteur TikTok mis à jour : ${newName}`);
+            if (feedbackChannel) {
+                await feedbackChannel.send(`✅ Compteur TikTok mis à jour : **${formatted} abonnés**.`);
+            }
         } else {
             console.log("ℹ️ Compteur TikTok déjà à jour.");
+            if (feedbackChannel) {
+                await feedbackChannel.send(`ℹ️ Compteur déjà à jour : **${formatted} abonnés**.`);
+            }
         }
     } catch (err) {
         console.error("❌ Erreur updateTikTokCounter :", err?.response?.data || err);
+        if (feedbackChannel) {
+            await feedbackChannel.send("❌ Erreur lors de la mise à jour TikTok (voir logs Render).");
+        }
     }
 }
 
@@ -103,7 +123,7 @@ async function updateTikTokCounter(guild) {
 client.once(Events.ClientReady, () => {
     console.log(`🤖 Bot connecté en tant que ${client.user.tag}`);
 
-    // On prend la première guilde où se trouve le bot (ou adapte si plusieurs)
+    // On prend la première guilde où se trouve le bot
     const guild = client.guilds.cache.first();
 
     // Mise à jour immédiate au démarrage
@@ -159,6 +179,19 @@ client.on(Events.MessageCreate, async (message) => {
             console.error("❌ ERREUR ENVOI EMBED TEST :", err);
             await message.reply("❌ Impossible d'envoyer l'embed. Vérifie les permissions du bot (Envoyer des embeds).");
         }
+        return;
+    }
+
+    // 🧪 COMMANDE POUR FORCER LA MISE À JOUR TIKTOK : !tiktokauto
+    if (lowered === "!tiktokauto") {
+        const guild = message.guild;
+        if (!guild) {
+            await message.reply("❌ Cette commande doit être utilisée dans un serveur.");
+            return;
+        }
+
+        await message.reply("🔁 Mise à jour du compteur TikTok en cours...");
+        await updateTikTokCounter(guild, message.channel);
         return;
     }
 
