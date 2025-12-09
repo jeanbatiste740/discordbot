@@ -1,10 +1,14 @@
 require("dotenv").config();
 const { Client, GatewayIntentBits, Events, EmbedBuilder } = require("discord.js");
 const OpenAI = require("openai");
+const axios = require("axios");
 
 // 🧑‍💻 ID DU PROPRIÉTAIRE (TOI)
-// ⚠️ IMPORTANT : remplace TON_ID_ICI par TON VRAI ID (le gros nombre)
+// ⚠️ MET TON VRAI ID DISCORD ICI (le gros nombre)
 const ownerId = "420265433367838721";
+
+// 🔢 Salon compteur TikTok (nom de base à chercher)
+const tiktokCounterChannelBaseName = "📱│tiktok-abonnés";
 
 // 🔧 Configuration du client Discord
 const client = new Client({
@@ -21,9 +25,94 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_KEY
 });
 
+// 🔁 Fonction : mettre à jour le salon compteur TikTok
+async function updateTikTokCounter(guild) {
+    try {
+        if (!guild) {
+            console.log("⚠️ Pas de guild pour update TikTok.");
+            return;
+        }
+
+        const host = process.env.RAPIDAPI_HOST;
+        const key = process.env.RAPIDAPI_KEY;
+        const secUid = process.env.TIKTOK_SEC_UID;
+
+        if (!host || !key || !secUid) {
+            console.log("⚠️ RAPIDAPI_HOST / RAPIDAPI_KEY / TIKTOK_SEC_UID manquants dans .env");
+            return;
+        }
+
+        // On cherche le salon de base
+        let counterChannel = guild.channels.cache.find(
+            (c) => c.name.startsWith("📱│tiktok")
+        );
+
+        if (!counterChannel) {
+            // Si pas trouvé, on essaie avec le nom de base exact
+            counterChannel = guild.channels.cache.find(
+                (c) => c.name === tiktokCounterChannelBaseName
+            );
+        }
+
+        if (!counterChannel) {
+            console.log("⚠️ Salon compteur TikTok introuvable.");
+            return;
+        }
+
+        // Appel à l’API TikTok Scraper
+        const url = `https://${host}/user/info?sec_uid=${encodeURIComponent(secUid)}`;
+
+        const response = await axios.get(url, {
+            headers: {
+                "x-rapidapi-key": key,
+                "x-rapidapi-host": host
+            }
+        });
+
+        const data = response.data;
+
+        // ⚠️ Cette partie dépend du format de l'API.
+        // Tu devras peut-être adapter selon la doc de l’API.
+        // Exemple hypothétique :
+        const followers =
+            data?.userInfo?.stats?.followerCount ||
+            data?.data?.stats?.followerCount ||
+            data?.stats?.followerCount ||
+            null;
+
+        if (!followers && followers !== 0) {
+            console.log("⚠️ Impossible de lire le nombre d’abonnés TikTok dans la réponse :", data);
+            return;
+        }
+
+        const formatted = Number(followers).toLocaleString("fr-FR");
+        const newName = `📱│TikTok : ${formatted} abonnés`;
+
+        if (counterChannel.name !== newName) {
+            await counterChannel.setName(newName);
+            console.log(`✅ Salon compteur TikTok mis à jour : ${newName}`);
+        } else {
+            console.log("ℹ️ Compteur TikTok déjà à jour.");
+        }
+    } catch (err) {
+        console.error("❌ Erreur updateTikTokCounter :", err?.response?.data || err);
+    }
+}
+
 // 🟢 Quand le bot est connecté
 client.once(Events.ClientReady, () => {
     console.log(`🤖 Bot connecté en tant que ${client.user.tag}`);
+
+    // On prend la première guilde où se trouve le bot (ou adapte si plusieurs)
+    const guild = client.guilds.cache.first();
+
+    // Mise à jour immédiate au démarrage
+    updateTikTokCounter(guild);
+
+    // Mise à jour toutes les 5 minutes (300 000 ms)
+    setInterval(() => {
+        updateTikTokCounter(guild);
+    }, 300000);
 });
 
 // 💬 Messages reçus
@@ -48,7 +137,7 @@ client.on(Events.MessageCreate, async (message) => {
             console.log(`✅ DM de test envoyé à ${ownerUser.tag}`);
         } catch (err) {
             console.error("❌ ERREUR ENVOI DM TEST :", err);
-            await message.reply("❌ Impossible d'envoyer le DM. Vérifie : 1) ton ID 2) tes paramètres de MP pour ce serveur.");
+            await message.reply("❌ Impossible d'envoyer le DM. Vérifie ton ID et tes MP.");
         }
         return;
     }
