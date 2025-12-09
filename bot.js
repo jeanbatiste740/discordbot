@@ -7,7 +7,8 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers // 👈 nécessaire pour guildMemberAdd
     ]
 });
 
@@ -61,6 +62,38 @@ client.on(Events.MessageCreate, async (message) => {
     } catch (err) {
         console.error("Erreur OpenAI / bot :", err);
         await message.reply("😅 Oups, j'ai eu une erreur technique. Réessaie !");
+    }
+});
+
+// 👋 Quand un nouveau membre rejoint le serveur
+client.on(Events.GuildMemberAdd, async (member) => {
+    console.log(`➕ Nouveau membre : ${member.user.tag}`);
+
+    // 🏷️ ID du rôle à donner automatiquement
+    const roleId = "1445640835998810172"; // 🔁 remplace par l'ID du rôle (ex: rôle Membre)
+    const role = member.guild.roles.cache.get(roleId);
+
+    if (role) {
+        try {
+            await member.roles.add(role);
+            console.log(`✅ Rôle donné à ${member.user.tag}`);
+        } catch (err) {
+            console.error("Erreur en donnant le rôle :", err);
+        }
+    } else {
+        console.log("⚠️ Rôle introuvable, vérifie l'ID !");
+    }
+
+    // 📢 ID du salon où envoyer le message de bienvenue
+    const welcomeChannelId = "1445634572904693780"; // 🔁 remplace par l'ID du salon de bienvenue
+    const channel = member.guild.channels.cache.get(welcomeChannelId);
+
+    if (channel) {
+        channel.send({
+            content: `👋 Bienvenue **${member.user.username}** sur le serveur ! 🎉\nRavi de t'avoir parmi nous 😎`
+        }).catch(console.error);
+    } else {
+        console.log("⚠️ Salon de bienvenue introuvable, vérifie l'ID !");
     }
 });
 
