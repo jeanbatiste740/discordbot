@@ -25,7 +25,7 @@ const client = new Client({
 const apiKey =
     process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim() !== ""
         ? process.env.OPENAI_API_KEY
-        : ""; // <-- tu peux mettre "sk-...." ici si tu veux
+        : "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"; // <-- tu peux mettre "sk-...." ici si tu veux
 
 let openai = null;
 
