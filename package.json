@@ -9,7 +9,6 @@
   "author": "Sacha",
   "license": "MIT",
   "dependencies": {
-    "axios": "^1.6.0",
     "discord.js": "^14.15.2",
     "dotenv": "^16.4.5",
     "openai": "^4.55.4"
