@@ -2,8 +2,9 @@ require("dotenv").config();
 const { Client, GatewayIntentBits, Events, EmbedBuilder } = require("discord.js");
 const OpenAI = require("openai");
 
-// 🧑‍💻 NOM DU PROPRIÉTAIRE (TOI)
-const ownerUsername = "king_dev20";
+// 🧑‍💻 ID DU PROPRIÉTAIRE (TOI)
+// ⚠️ IMPORTANT : remplace TON_ID_ICI par TON VRAI ID (le gros nombre)
+const ownerId = "420265433367838721";
 
 // 🔧 Configuration du client Discord
 const client = new Client({
@@ -11,7 +12,7 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers // nécessaire pour guildMemberAdd + fetch des membres
+        GatewayIntentBits.GuildMembers
     ]
 });
 
@@ -29,46 +30,31 @@ client.once(Events.ClientReady, () => {
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;
 
-    console.log(`📩 Message reçu dans #${message.channel.name} par ${message.author.tag} : ${message.content}`);
+    console.log(`📩 #${message.channel.name} | ${message.author.tag} : ${message.content}`);
 
     const lowered = message.content.trim().toLowerCase();
 
-    // 🧪 COMMANDE DE TEST POUR TE DM : !testdm
+    // 🧪 COMMANDE TEST DM : !testdm
     if (lowered === "!testdm") {
-        console.log("🧪 Commande !testdm reçue");
-
-        try {
-            const guild = message.guild;
-            if (!guild) {
-                await message.reply("❌ Cette commande doit être utilisée dans un serveur.");
-                return;
-            }
-
-            // On récupère tous les membres du serveur et on cherche ton pseudo
-            const members = await guild.members.fetch();
-            const ownerMember = members.find(m => m.user.username === ownerUsername);
-
-            if (!ownerMember) {
-                await message.reply(`❌ Impossible de trouver l'utilisateur **${ownerUsername}** dans ce serveur.`);
-                console.log("❌ Proprio introuvable par username");
-                return;
-            }
-
-            await ownerMember.send("👋 Ceci est un message de TEST du bot : le DM fonctionne bien !");
-            await message.reply("✅ DM envoyé au propriétaire (vérifie tes messages privés).");
-            console.log(`✅ DM de test envoyé à ${ownerMember.user.tag}`);
-        } catch (err) {
-            console.error("❌ ERREUR ENVOI DM TEST :", err);
-            await message.reply("❌ Impossible d'envoyer le DM. Vérifie tes paramètres de messages privés pour ce serveur.");
+        if (ownerId === "TON_ID_ICI") {
+            await message.reply("⚠️ Tu dois remplacer TON_ID_ICI par ton vrai ID dans le code.");
+            return;
         }
 
+        try {
+            const ownerUser = await client.users.fetch(ownerId);
+            await ownerUser.send("👋 Ceci est un message de TEST du bot : si tu vois ça, les DM fonctionnent ✅");
+            await message.reply("✅ DM envoyé au propriétaire (vérifie tes messages privés).");
+            console.log(`✅ DM de test envoyé à ${ownerUser.tag}`);
+        } catch (err) {
+            console.error("❌ ERREUR ENVOI DM TEST :", err);
+            await message.reply("❌ Impossible d'envoyer le DM. Vérifie : 1) ton ID 2) tes paramètres de MP pour ce serveur.");
+        }
         return;
     }
 
-    // 🧪 COMMANDE DE TEST POUR L'EMBED DE BIENVENUE
+    // 🧪 COMMANDE TEST EMBED : !testwelcome
     if (lowered === "!testwelcome") {
-        console.log("🧪 Commande !testwelcome reçue");
-
         const embed = new EmbedBuilder()
             .setColor("#5865F2")
             .setTitle("🎉 Nouveau membre (TEST) !")
@@ -80,26 +66,20 @@ client.on(Events.MessageCreate, async (message) => {
         try {
             await message.channel.send({ embeds: [embed] });
             await message.reply("✅ Embed de bienvenue (TEST) envoyé dans ce salon.");
-            console.log("✅ Embed de test envoyé");
         } catch (err) {
             console.error("❌ ERREUR ENVOI EMBED TEST :", err);
-            await message.reply("❌ Impossible d'envoyer l'embed (test). Vérifie les permissions du bot dans ce salon (Envoyer des embeds).");
+            await message.reply("❌ Impossible d'envoyer l'embed. Vérifie les permissions du bot (Envoyer des embeds).");
         }
-
         return;
     }
 
-    // 💬 Réponse IA uniquement dans un salon précis avec EMOJI
+    // 💬 Réponse IA uniquement dans 『🤖』sacha-ai
     if (message.channel.name !== "『🤖』sacha-ai") return;
 
     const userText = message.content?.trim();
-    if (!userText) return;
-    if (userText.length < 2) return;
-
-    console.log(`💬 ${message.author.tag} (IA) : ${userText}`);
+    if (!userText || userText.length < 2) return;
 
     try {
-        // Effet "est en train d'écrire..."
         await message.channel.sendTyping();
 
         const completion = await openai.chat.completions.create({
@@ -109,10 +89,7 @@ client.on(Events.MessageCreate, async (message) => {
                     role: "system",
                     content: "Tu es un assistant utile et gentil sur un serveur Discord. Tu parles en français."
                 },
-                {
-                    role: "user",
-                    content: userText
-                }
+                { role: "user", content: userText }
             ],
             max_tokens: 300
         });
@@ -126,15 +103,13 @@ client.on(Events.MessageCreate, async (message) => {
     }
 });
 
-// 👋 Message de bienvenue + rôle automatique + DM au proprio
+// 👋 Bienvenue + rôle + DM au proprio
 client.on(Events.GuildMemberAdd, async (member) => {
-
     console.log(`➕ Nouveau membre : ${member.user.tag}`);
 
-    // 👉 NOM DU ROLE À DONNER
+    // 👉 Rôle auto
     const roleName = "🦸Communauté";
     const role = member.guild.roles.cache.find(r => r.name === roleName);
-
     if (role) {
         try {
             await member.roles.add(role);
@@ -143,17 +118,14 @@ client.on(Events.GuildMemberAdd, async (member) => {
             console.error("Erreur rôle :", err);
         }
     } else {
-        console.log("⚠️ Rôle introuvable : vérifie le nom !");
+        console.log("⚠️ Rôle introuvable :", roleName);
     }
 
-    // 👉 SALON DE BIENVENUE PAR NOM
+    // 👉 Salon de bienvenue
     const welcomeChannelName = "『👋』𝗖𝗢𝗨𝗖𝗢𝗨";
     const channel = member.guild.channels.cache.find(c => c.name === welcomeChannelName);
 
-    if (!channel) {
-        console.log("⚠️ Salon de bienvenue introuvable : vérifie le nom !");
-    } else {
-        // ⭐ EMBED DE BIENVENUE
+    if (channel) {
         const welcomeEmbed = new EmbedBuilder()
             .setColor("#5865F2")
             .setTitle("✨ Nouveau membre dans la communauté !")
@@ -172,25 +144,21 @@ client.on(Events.GuildMemberAdd, async (member) => {
         } catch (err) {
             console.error("❌ ERREUR ENVOI EMBED BIENVENUE :", err);
         }
+    } else {
+        console.log("⚠️ Salon de bienvenue introuvable :", welcomeChannelName);
     }
 
-    // 💌 DM AU PROPRIÉTAIRE (TOI) PAR USERNAME
-    try {
-        const guild = member.guild;
-        const members = await guild.members.fetch();
-        const ownerMember = members.find(m => m.user.username === ownerUsername);
-
-        if (!ownerMember) {
-            console.log("⚠️ Propriétaire introuvable par username :", ownerUsername);
-            return;
+    // 💌 DM au propriétaire
+    if (ownerId !== "TON_ID_ICI") {
+        try {
+            const ownerUser = await client.users.fetch(ownerId);
+            await ownerUser.send(
+                `🔔 Nouveau membre sur **${member.guild.name}** : **${member.user.tag}** vient de rejoindre le serveur.`
+            );
+            console.log(`📨 DM envoyé au propriétaire (${ownerUser.tag}) pour ${member.user.tag}`);
+        } catch (err) {
+            console.error("❌ Impossible d'envoyer le DM au propriétaire :", err);
         }
-
-        await ownerMember.send(
-            `🔔 Nouveau membre sur **${member.guild.name}** : **${member.user.tag}** a rejoint le serveur.`
-        );
-        console.log(`📨 DM envoyé au propriétaire (${ownerMember.user.tag}) pour ${member.user.tag}`);
-    } catch (err) {
-        console.error("❌ Impossible d'envoyer le DM au propriétaire :", err);
     }
 });
 
