@@ -2,9 +2,8 @@ require("dotenv").config();
 const { Client, GatewayIntentBits, Events, EmbedBuilder } = require("discord.js");
 const OpenAI = require("openai");
 
-// 🧑‍💻 ID DU PROPRIÉTAIRE (TOI)
-// ⚠️ Remplace par TON ID utilisateur Discord
-const ownerId = "420265433367838721";
+// 🧑‍💻 NOM DU PROPRIÉTAIRE (TOI)
+const ownerUsername = "king_dev20";
 
 // 🔧 Configuration du client Discord
 const client = new Client({
@@ -12,7 +11,7 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers // nécessaire pour guildMemberAdd
+        GatewayIntentBits.GuildMembers // nécessaire pour guildMemberAdd + fetch des membres
     ]
 });
 
@@ -32,8 +31,41 @@ client.on(Events.MessageCreate, async (message) => {
 
     console.log(`📩 Message reçu dans #${message.channel.name} par ${message.author.tag} : ${message.content}`);
 
-    // 🧪 COMMANDE DE TEST POUR L'EMBED DE BIENVENUE
     const lowered = message.content.trim().toLowerCase();
+
+    // 🧪 COMMANDE DE TEST POUR TE DM : !testdm
+    if (lowered === "!testdm") {
+        console.log("🧪 Commande !testdm reçue");
+
+        try {
+            const guild = message.guild;
+            if (!guild) {
+                await message.reply("❌ Cette commande doit être utilisée dans un serveur.");
+                return;
+            }
+
+            // On récupère tous les membres du serveur et on cherche ton pseudo
+            const members = await guild.members.fetch();
+            const ownerMember = members.find(m => m.user.username === ownerUsername);
+
+            if (!ownerMember) {
+                await message.reply(`❌ Impossible de trouver l'utilisateur **${ownerUsername}** dans ce serveur.`);
+                console.log("❌ Proprio introuvable par username");
+                return;
+            }
+
+            await ownerMember.send("👋 Ceci est un message de TEST du bot : le DM fonctionne bien !");
+            await message.reply("✅ DM envoyé au propriétaire (vérifie tes messages privés).");
+            console.log(`✅ DM de test envoyé à ${ownerMember.user.tag}`);
+        } catch (err) {
+            console.error("❌ ERREUR ENVOI DM TEST :", err);
+            await message.reply("❌ Impossible d'envoyer le DM. Vérifie tes paramètres de messages privés pour ce serveur.");
+        }
+
+        return;
+    }
+
+    // 🧪 COMMANDE DE TEST POUR L'EMBED DE BIENVENUE
     if (lowered === "!testwelcome") {
         console.log("🧪 Commande !testwelcome reçue");
 
@@ -54,7 +86,7 @@ client.on(Events.MessageCreate, async (message) => {
             await message.reply("❌ Impossible d'envoyer l'embed (test). Vérifie les permissions du bot dans ce salon (Envoyer des embeds).");
         }
 
-        return; // on s'arrête là pour cette commande
+        return;
     }
 
     // 💬 Réponse IA uniquement dans un salon précis avec EMOJI
@@ -139,27 +171,26 @@ client.on(Events.GuildMemberAdd, async (member) => {
             console.log("✅ Embed de bienvenue envoyé");
         } catch (err) {
             console.error("❌ ERREUR ENVOI EMBED BIENVENUE :", err);
-            try {
-                await channel.send(`👋 Bienvenue **${member.user.username}** sur le serveur ! (message texte de secours)`);
-            } catch (e2) {
-                console.error("❌ Impossible d'envoyer même un message texte :", e2);
-            }
         }
     }
 
-    // 💌 DM AU PROPRIÉTAIRE (TOI)
-    if (ownerId) {
-        try {
-            const ownerUser = await client.users.fetch(ownerId);
-            if (ownerUser) {
-                await ownerUser.send(
-                    `🔔 Nouveau membre sur **${member.guild.name}** : **${member.user.tag}** a rejoint le serveur.`
-                );
-                console.log(`📨 DM envoyé au propriétaire (${ownerUser.tag}) pour ${member.user.tag}`);
-            }
-        } catch (err) {
-            console.error("❌ Impossible d'envoyer le DM au propriétaire :", err);
+    // 💌 DM AU PROPRIÉTAIRE (TOI) PAR USERNAME
+    try {
+        const guild = member.guild;
+        const members = await guild.members.fetch();
+        const ownerMember = members.find(m => m.user.username === ownerUsername);
+
+        if (!ownerMember) {
+            console.log("⚠️ Propriétaire introuvable par username :", ownerUsername);
+            return;
         }
+
+        await ownerMember.send(
+            `🔔 Nouveau membre sur **${member.guild.name}** : **${member.user.tag}** a rejoint le serveur.`
+        );
+        console.log(`📨 DM envoyé au propriétaire (${ownerMember.user.tag}) pour ${member.user.tag}`);
+    } catch (err) {
+        console.error("❌ Impossible d'envoyer le DM au propriétaire :", err);
     }
 });
 
