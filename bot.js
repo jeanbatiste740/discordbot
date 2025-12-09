@@ -8,7 +8,7 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers // 👈 nécessaire pour guildMemberAdd
+        GatewayIntentBits.GuildMembers // nécessaire pour guildMemberAdd
     ]
 });
 
@@ -22,11 +22,11 @@ client.once(Events.ClientReady, () => {
     console.log(`🤖 Bot connecté en tant que ${client.user.tag}`);
 });
 
-// 💬 Quand quelqu'un envoie un message
+// 💬 Réponse IA uniquement dans un salon précis avec EMOJI
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;
 
-    // 👉 Le bot répond uniquement dans le salon avec emoji dans le nom
+    // 👉 Remplace par TON salon IA
     if (message.channel.name !== "『🤖』sacha-ai") return;
 
     const userText = message.content?.trim();
@@ -36,10 +36,8 @@ client.on(Events.MessageCreate, async (message) => {
     console.log(`💬 ${message.author.tag} : ${userText}`);
 
     try {
-        // ✍️ Le bot montre qu'il est en train d'écrire
         await message.channel.sendTyping();
 
-        // Envoi à ChatGPT
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
@@ -56,7 +54,6 @@ client.on(Events.MessageCreate, async (message) => {
         });
 
         const reply = completion.choices[0]?.message?.content || "Je ne sais pas quoi répondre pour le moment.";
-
         await message.reply(reply);
 
     } catch (err) {
@@ -65,35 +62,36 @@ client.on(Events.MessageCreate, async (message) => {
     }
 });
 
-// 👋 Quand un nouveau membre rejoint le serveur
+// 👋 Message de bienvenue + rôle automatique avec CHANNEL.NAME
 client.on(Events.GuildMemberAdd, async (member) => {
+
     console.log(`➕ Nouveau membre : ${member.user.tag}`);
 
-    // 🏷️ ID du rôle à donner automatiquement
-    const roleId = "1445640835998810172"; // 🔁 remplace par l'ID du rôle (ex: rôle Membre)
-    const role = member.guild.roles.cache.get(roleId);
+    // 👉 NOM DU ROLE À DONNER (pas l’ID, le NOM)
+    const roleName = "🦸Communauté"; // 🔁 Remplace par TON nom de rôle
+    const role = member.guild.roles.cache.find(r => r.name === roleName);
 
     if (role) {
         try {
             await member.roles.add(role);
-            console.log(`✅ Rôle donné à ${member.user.tag}`);
+            console.log(`✅ Rôle '${role.name}' donné à ${member.user.tag}`);
         } catch (err) {
-            console.error("Erreur en donnant le rôle :", err);
+            console.error("Erreur rôle :", err);
         }
     } else {
-        console.log("⚠️ Rôle introuvable, vérifie l'ID !");
+        console.log("⚠️ Rôle introuvable : vérifie le nom !");
     }
 
-    // 📢 ID du salon où envoyer le message de bienvenue
-    const welcomeChannelId = "1445634572904693780"; // 🔁 remplace par l'ID du salon de bienvenue
-    const channel = member.guild.channels.cache.get(welcomeChannelId);
+    // 👉 SALON DE BIENVENUE PAR NOM (avec emoji si tu veux)
+    const welcomeChannelName = "『👋』𝗖𝗢𝗨𝗖𝗢𝗨"; // 🔁 Remplace par TON salon
+    const channel = member.guild.channels.cache.find(c => c.name === welcomeChannelName);
 
     if (channel) {
         channel.send({
-            content: `👋 Bienvenue **${member.user.username}** sur le serveur ! 🎉\nRavi de t'avoir parmi nous 😎`
+            content: `👋 Bienvenue **${member.user.username}** sur le serveur ! 🎉`
         }).catch(console.error);
     } else {
-        console.log("⚠️ Salon de bienvenue introuvable, vérifie l'ID !");
+        console.log("⚠️ Salon de bienvenue introuvable : vérifie le nom !");
     }
 });
 
