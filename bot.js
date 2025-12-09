@@ -26,29 +26,31 @@ client.once(Events.ClientReady, () => {
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;
 
-    // 🧪 COMMANDE DE TEST POUR L'EMBED DE BIENVENUE
-    if (message.content === "!testwelcome") {
-        console.log("🧪 Commande !testwelcome reçue");
+    console.log(`📩 Message reçu dans #${message.channel.name} par ${message.author.tag} : ${message.content}`);
 
-        const roleName = "🦸Communauté";
-        const welcomeChannelName = "『👋』𝗖𝗢𝗨𝗖𝗢𝗨";
+    // 🧪 COMMANDE DE TEST POUR L'EMBED DE BIENVENUE
+    const lowered = message.content.trim().toLowerCase();
+    if (lowered === "!testwelcome") {
+        console.log("🧪 Commande !testwelcome reçue");
 
         const embed = new EmbedBuilder()
             .setColor("#5865F2")
             .setTitle("🎉 Nouveau membre (TEST) !")
-            .setDescription(`Bienvenue à toi ${message.author} (test) ! Si tu vois ça, l'embed fonctionne ✅`)
+            .setDescription(`Bienvenue à toi ${message.author} (test) ! Si tu vois cet embed, tout fonctionne ✅`)
             .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setFooter({ text: "Bienvenue dans la communauté 🦸" });
 
         try {
             await message.channel.send({ embeds: [embed] });
+            await message.reply("✅ Embed de bienvenue (TEST) envoyé dans ce salon.");
             console.log("✅ Embed de test envoyé");
         } catch (err) {
             console.error("❌ ERREUR ENVOI EMBED TEST :", err);
+            await message.reply("❌ Impossible d'envoyer l'embed (test). Vérifie les permissions du bot dans ce salon (Envoyer des embeds).");
         }
 
-        return; // on s'arrête là pour cette commande
+        return; // on ne continue pas plus loin pour cette commande
     }
 
     // 💬 Réponse IA uniquement dans un salon précis avec EMOJI
@@ -58,7 +60,7 @@ client.on(Events.MessageCreate, async (message) => {
     if (!userText) return;
     if (userText.length < 2) return;
 
-    console.log(`💬 ${message.author.tag} : ${userText}`);
+    console.log(`💬 ${message.author.tag} (IA) : ${userText}`);
 
     try {
         // Effet "est en train d'écrire..."
@@ -135,6 +137,11 @@ client.on(Events.GuildMemberAdd, async (member) => {
         console.log("✅ Embed de bienvenue envoyé");
     } catch (err) {
         console.error("❌ ERREUR ENVOI EMBED BIENVENUE :", err);
+        try {
+            await channel.send(`👋 Bienvenue **${member.user.username}** sur le serveur ! (message texte de secours)`);
+        } catch (e2) {
+            console.error("❌ Impossible d'envoyer même un message texte :", e2);
+        }
     }
 });
 
