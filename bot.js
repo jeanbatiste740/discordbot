@@ -1,5 +1,5 @@
 require("dotenv").config();
-const { Client, GatewayIntentBits, Events } = require("discord.js");
+const { Client, GatewayIntentBits, Events, EmbedBuilder } = require("discord.js");
 const OpenAI = require("openai");
 
 // 🔧 Configuration du client Discord
@@ -26,7 +26,7 @@ client.once(Events.ClientReady, () => {
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;
 
-    // 👉 Remplace par TON salon IA
+    // 👉 Salon IA
     if (message.channel.name !== "『🤖』sacha-ai") return;
 
     const userText = message.content?.trim();
@@ -36,6 +36,7 @@ client.on(Events.MessageCreate, async (message) => {
     console.log(`💬 ${message.author.tag} : ${userText}`);
 
     try {
+        // Effet "est en train d'écrire..."
         await message.channel.sendTyping();
 
         const completion = await openai.chat.completions.create({
@@ -62,13 +63,13 @@ client.on(Events.MessageCreate, async (message) => {
     }
 });
 
-// 👋 Message de bienvenue + rôle automatique avec CHANNEL.NAME
+// 👋 Message de bienvenue + rôle automatique avec CHANNEL.NAME (embed)
 client.on(Events.GuildMemberAdd, async (member) => {
 
     console.log(`➕ Nouveau membre : ${member.user.tag}`);
 
-    // 👉 NOM DU ROLE À DONNER (pas l’ID, le NOM)
-    const roleName = "🦸Communauté"; // 🔁 Remplace par TON nom de rôle
+    // 👉 NOM DU ROLE À DONNER
+    const roleName = "🦸Communauté";
     const role = member.guild.roles.cache.find(r => r.name === roleName);
 
     if (role) {
@@ -82,17 +83,29 @@ client.on(Events.GuildMemberAdd, async (member) => {
         console.log("⚠️ Rôle introuvable : vérifie le nom !");
     }
 
-    // 👉 SALON DE BIENVENUE PAR NOM (avec emoji si tu veux)
-    const welcomeChannelName = "『👋』𝗖𝗢𝗨𝗖𝗢𝗨"; // 🔁 Remplace par TON salon
+    // 👉 SALON DE BIENVENUE PAR NOM
+    const welcomeChannelName = "『👋』𝗖𝗢𝗨𝗖𝗢𝗨";
     const channel = member.guild.channels.cache.find(c => c.name === welcomeChannelName);
 
-    if (channel) {
-        channel.send({
-            content: `👋 Bienvenue **${member.user.username}** sur le serveur ! 🎉`
-        }).catch(console.error);
-    } else {
+    if (!channel) {
         console.log("⚠️ Salon de bienvenue introuvable : vérifie le nom !");
+        return;
     }
+
+    // ⭐ EMBED DE BIENVENUE
+    const welcomeEmbed = new EmbedBuilder()
+        .setColor(0x5865F2) // Couleur (violet Discord)
+        .setTitle("✨ Un nouveau membre rejoint la communauté !")
+        .setDescription(
+            `👋 Bienvenue à toi, ${member.user} !\n\n` +
+            `Tu viens d’arriver sur **${member.guild.name}**.\n` +
+            `Installe-toi, lis les salons importants et n’hésite pas à dire coucou 😎`
+        )
+        .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+        .setFooter({ text: "Merci de rejoindre la communauté 🦸" })
+        .setTimestamp(new Date());
+
+    channel.send({ embeds: [welcomeEmbed] }).catch(console.error);
 });
 
 // 🚀 Connexion
