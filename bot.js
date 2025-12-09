@@ -6,7 +6,7 @@ const OpenAI = require("openai");
 const ownerId = "420265433367838721";
 
 // 🔢 NOM DE BASE DU SALON COMPTEUR DE MEMBRES
-// ➜ Crée un salon texte nommé EXACTEMENT : 👥│membres
+// ➜ Tu peux utiliser un salon vocal OU texte appelé au départ : 👥│membres
 const memberCounterChannelBaseName = "👥│membres";
 
 // 🔧 Configuration du client Discord
@@ -25,37 +25,61 @@ const openai = new OpenAI({
 });
 
 // 🔁 Met à jour le salon compteur de membres pour une guilde
-async function updateMemberCount(guild) {
+async function updateMemberCount(guild, feedbackChannel = null) {
     try {
-        if (!guild) return;
+        if (!guild) {
+            if (feedbackChannel) await feedbackChannel.send("⚠️ Impossible de trouver le serveur.");
+            return;
+        }
 
         const count = guild.memberCount;
         const newName = `👥│membres : ${count}`;
 
-        // On cherche un salon qui commence par "👥│membres" ou qui a le nom de base exact
+        // On cherche un salon (texte OU vocal) qui commence par "👥│membres"
         let counterChannel = guild.channels.cache.find(
             c => c.name.startsWith("👥│membres")
         );
 
         if (!counterChannel) {
+            // Ou un salon nommé exactement comme le nom de base
             counterChannel = guild.channels.cache.find(
                 c => c.name === memberCounterChannelBaseName
             );
         }
 
         if (!counterChannel) {
-            console.log(`⚠️ Aucun salon compteur de membres trouvé dans ${guild.name}. Crée un salon texte nommé "${memberCounterChannelBaseName}".`);
+            console.log(`⚠️ Aucun salon compteur de membres trouvé dans ${guild.name}.`);
+            if (feedbackChannel) {
+                await feedbackChannel.send(
+                    `⚠️ Aucun salon compteur trouvé.\n` +
+                    `Crée un **salon vocal ou texte** qui s'appelle **${memberCounterChannelBaseName}**.`
+                );
+            }
             return;
         }
 
-        if (counterChannel.name !== newName) {
-            await counterChannel.setName(newName);
-            console.log(`✅ Compteur de membres mis à jour dans ${guild.name} : ${newName}`);
-        } else {
+        if (counterChannel.name === newName) {
             console.log(`ℹ️ Compteur de membres déjà à jour dans ${guild.name}.`);
+            if (feedbackChannel) {
+                await feedbackChannel.send(`ℹ️ Compteur déjà à jour : **${count} membres**.`);
+            }
+            return;
         }
+
+        await counterChannel.setName(newName);
+        console.log(`✅ Compteur de membres mis à jour dans ${guild.name} : ${newName}`);
+        if (feedbackChannel) {
+            await feedbackChannel.send(`✅ Compteur mis à jour : **${count} membres**.`);
+        }
+
     } catch (err) {
         console.error("❌ Erreur updateMemberCount :", err);
+        if (feedbackChannel) {
+            await feedbackChannel.send(
+                "❌ Erreur lors de la mise à jour du compteur.\n" +
+                "Vérifie que le bot a la permission **Gérer les salons** sur ce salon."
+            );
+        }
     }
 }
 
@@ -76,6 +100,17 @@ client.on(Events.MessageCreate, async (message) => {
     console.log(`📩 #${message.channel.name} | ${message.author.tag} : ${message.content}`);
 
     const lowered = message.content.trim().toLowerCase();
+
+    // 🧪 COMMANDE : !membersupdate → debug compteur
+    if (lowered === "!membersupdate") {
+        if (!message.guild) {
+            await message.reply("❌ Cette commande doit être utilisée dans un serveur.");
+            return;
+        }
+        await message.reply("🔁 Mise à jour du compteur de membres en cours...");
+        await updateMemberCount(message.guild, message.channel);
+        return;
+    }
 
     // 🧪 COMMANDE TEST DM : !testdm
     if (lowered === "!testdm") {
