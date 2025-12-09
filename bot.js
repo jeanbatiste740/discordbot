@@ -2,6 +2,10 @@ require("dotenv").config();
 const { Client, GatewayIntentBits, Events, EmbedBuilder } = require("discord.js");
 const OpenAI = require("openai");
 
+// 🧑‍💻 ID DU PROPRIÉTAIRE (TOI)
+// ⚠️ Remplace par TON ID utilisateur Discord
+const ownerId = "420265433367838721";
+
 // 🔧 Configuration du client Discord
 const client = new Client({
     intents: [
@@ -50,7 +54,7 @@ client.on(Events.MessageCreate, async (message) => {
             await message.reply("❌ Impossible d'envoyer l'embed (test). Vérifie les permissions du bot dans ce salon (Envoyer des embeds).");
         }
 
-        return; // on ne continue pas plus loin pour cette commande
+        return; // on s'arrête là pour cette commande
     }
 
     // 💬 Réponse IA uniquement dans un salon précis avec EMOJI
@@ -90,7 +94,7 @@ client.on(Events.MessageCreate, async (message) => {
     }
 });
 
-// 👋 Message de bienvenue + rôle automatique avec CHANNEL.NAME
+// 👋 Message de bienvenue + rôle automatique + DM au proprio
 client.on(Events.GuildMemberAdd, async (member) => {
 
     console.log(`➕ Nouveau membre : ${member.user.tag}`);
@@ -116,31 +120,45 @@ client.on(Events.GuildMemberAdd, async (member) => {
 
     if (!channel) {
         console.log("⚠️ Salon de bienvenue introuvable : vérifie le nom !");
-        return;
+    } else {
+        // ⭐ EMBED DE BIENVENUE
+        const welcomeEmbed = new EmbedBuilder()
+            .setColor("#5865F2")
+            .setTitle("✨ Nouveau membre dans la communauté !")
+            .setDescription(
+                `👋 Bienvenue à toi ${member.user} !\n\n` +
+                `Tu viens d'arriver sur **${member.guild.name}**.\n` +
+                `Installe-toi, découvre les salons et n'hésite pas à dire coucou 😄`
+            )
+            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+            .setFooter({ text: "Merci de rejoindre la communauté 🦸" })
+            .setTimestamp();
+
+        try {
+            await channel.send({ embeds: [welcomeEmbed] });
+            console.log("✅ Embed de bienvenue envoyé");
+        } catch (err) {
+            console.error("❌ ERREUR ENVOI EMBED BIENVENUE :", err);
+            try {
+                await channel.send(`👋 Bienvenue **${member.user.username}** sur le serveur ! (message texte de secours)`);
+            } catch (e2) {
+                console.error("❌ Impossible d'envoyer même un message texte :", e2);
+            }
+        }
     }
 
-    // ⭐ EMBED DE BIENVENUE
-    const welcomeEmbed = new EmbedBuilder()
-        .setColor("#5865F2")
-        .setTitle("✨ Nouveau membre dans la communauté !")
-        .setDescription(
-            `👋 Bienvenue à toi ${member.user} !\n\n` +
-            `Tu viens d'arriver sur **${member.guild.name}**.\n` +
-            `Installe-toi, découvre les salons et n'hésite pas à dire coucou 😄`
-        )
-        .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-        .setFooter({ text: "Merci de rejoindre la communauté 🦸" })
-        .setTimestamp();
-
-    try {
-        await channel.send({ embeds: [welcomeEmbed] });
-        console.log("✅ Embed de bienvenue envoyé");
-    } catch (err) {
-        console.error("❌ ERREUR ENVOI EMBED BIENVENUE :", err);
+    // 💌 DM AU PROPRIÉTAIRE (TOI)
+    if (ownerId) {
         try {
-            await channel.send(`👋 Bienvenue **${member.user.username}** sur le serveur ! (message texte de secours)`);
-        } catch (e2) {
-            console.error("❌ Impossible d'envoyer même un message texte :", e2);
+            const ownerUser = await client.users.fetch(ownerId);
+            if (ownerUser) {
+                await ownerUser.send(
+                    `🔔 Nouveau membre sur **${member.guild.name}** : **${member.user.tag}** a rejoint le serveur.`
+                );
+                console.log(`📨 DM envoyé au propriétaire (${ownerUser.tag}) pour ${member.user.tag}`);
+            }
+        } catch (err) {
+            console.error("❌ Impossible d'envoyer le DM au propriétaire :", err);
         }
     }
 });
