@@ -1,16 +1,14 @@
 {
   "name": "chatgpt-discord-bot",
   "version": "1.0.0",
-  "description": "Bot Discord ChatGPT + compteur TikTok + accueil automatique",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
   },
-  "author": "Sacha",
-  "license": "MIT",
   "dependencies": {
     "discord.js": "^14.15.2",
     "dotenv": "^16.4.5",
     "openai": "^4.55.4"
   }
 }
+
