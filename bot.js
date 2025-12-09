@@ -19,10 +19,22 @@ const client = new Client({
     ]
 });
 
-// 🔧 Client OpenAI (clé dans OPENAI_API_KEY sur Render)
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+// 🔧 Client OpenAI
+// 👉 OPTION 1 : via variable d'environnement OPENAI_API_KEY (Render)
+// 👉 OPTION 2 : tu peux mettre ta clé directement à la place de "" si ton repo est PRIVÉ
+const apiKey =
+    process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim() !== ""
+        ? process.env.OPENAI_API_KEY
+        : ""; // <-- tu peux mettre "sk-...." ici si tu veux
+
+let openai = null;
+
+if (!apiKey) {
+    console.warn("⚠️ Aucune clé OpenAI configurée (OPENAI_API_KEY vide). L'IA ne répondra pas.");
+} else {
+    openai = new OpenAI({ apiKey });
+    console.log("✅ Client OpenAI initialisé.");
+}
 
 // 🔁 Met à jour le compteur de membres
 async function updateMemberCount(guild, feedbackChannel = null) {
@@ -150,6 +162,12 @@ client.on(Events.MessageCreate, async (message) => {
 
     const userText = message.content?.trim();
     if (!userText || userText.length < 2) return;
+
+    // 👉 Si OpenAI n'est pas configuré, on évite le crash et on répond proprement
+    if (!openai) {
+        await message.reply("⚠️ L'IA n'est pas configurée (clé OpenAI manquante). Parle à Sacha pour configurer ça 😉");
+        return;
+    }
 
     try {
         await message.channel.sendTyping();
