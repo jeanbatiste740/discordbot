@@ -23,8 +23,12 @@ client.once(Events.ClientReady, () => {
 
 // 💬 Quand quelqu'un envoie un message sur le serveur
 client.on(Events.MessageCreate, async (message) => {
-    // On ignore les messages des autres bots (pour éviter les boucles infinies)
+    // On ignore les messages des bots
     if (message.author.bot) return;
+
+    // 👉 Le bot répond UNIQUEMENT dans CE salon
+    // ⚠️ Remplace "assistant-gpt" par le nom exact de TON salon
+    if (message.channel.name !== "『🤖』chat-gpt") return;
 
     // Texte du message
     const userText = message.content?.trim();
@@ -37,7 +41,7 @@ client.on(Events.MessageCreate, async (message) => {
     console.log(`💬 ${message.author.tag} : ${userText}`);
 
     try {
-        // On envoie le message à ChatGPT
+        // On envoie à ChatGPT
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
@@ -55,7 +59,7 @@ client.on(Events.MessageCreate, async (message) => {
 
         const reply = completion.choices[0]?.message?.content || "Je ne sais pas quoi répondre pour le moment.";
 
-        // On répond dans le même salon
+        // Réponse dans le même salon
         await message.reply(reply);
 
     } catch (err) {
