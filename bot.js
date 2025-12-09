@@ -25,6 +25,34 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_KEY
 });
 
+/**
+ * Essaie d'aller chercher followerCount dans plusieurs endroits possibles
+ * selon les différentes formes que l'API TikTok peut renvoyer.
+ */
+function extractFollowerCount(data) {
+    if (!data || typeof data !== "object") return null;
+
+    // différents chemins possibles
+    const candidates = [
+        data?.userInfo?.stats?.followerCount,
+        data?.data?.userInfo?.stats?.followerCount,
+        data?.data?.stats?.followerCount,
+        data?.stats?.followerCount,
+        data?.user?.stats?.followerCount,
+        data?.data?.user?.stats?.followerCount,
+        data?.authorStats?.followerCount,
+        data?.data?.authorStats?.followerCount,
+        data?.followerCount
+    ];
+
+    for (const c of candidates) {
+        if (typeof c === "number") return c;
+        if (typeof c === "string" && !isNaN(parseInt(c))) return parseInt(c);
+    }
+
+    return null;
+}
+
 // 🔁 Fonction : mettre à jour le salon compteur TikTok
 async function updateTikTokCounter(guild, feedbackChannel = null) {
     try {
@@ -78,20 +106,17 @@ async function updateTikTokCounter(guild, feedbackChannel = null) {
         });
 
         const data = response.data;
-        console.log("📦 Réponse TikTok (début) :", JSON.stringify(data).slice(0, 400));
+        console.log("📦 Réponse TikTok (début) :", JSON.stringify(data).slice(0, 600));
 
-        // 🧠 Tentatives pour trouver le nombre d'abonnés
-        const followers =
-            data?.userInfo?.stats?.followerCount ||
-            data?.data?.stats?.followerCount ||
-            data?.stats?.followerCount ||
-            data?.followerCount ||
-            null;
+        const followers = extractFollowerCount(data);
 
         if (followers === null || followers === undefined) {
             console.log("⚠️ Impossible de lire le nombre d’abonnés TikTok dans la réponse.");
             if (feedbackChannel) {
-                await feedbackChannel.send("❌ Impossible de lire le nombre d’abonnés dans la réponse TikTok. Regarde les logs Render pour la structure.");
+                await feedbackChannel.send(
+                    "❌ Impossible de lire le nombre d’abonnés dans la réponse TikTok.\n" +
+                    "Regarde les logs Render (chercher `📦 Réponse TikTok`) pour voir la structure exacte."
+                );
             }
             return;
         }
