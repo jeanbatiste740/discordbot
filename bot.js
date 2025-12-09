@@ -8,7 +8,7 @@ const axios = require("axios");
 const ownerId = "420265433367838721";
 
 // 🔢 Salon compteur TikTok (nom de base à chercher)
-const tiktokCounterChannelBaseName = "📱│tiktok-abonnés";
+const tiktokCounterChannelBaseName = "abonnés";
 
 // 🔧 Configuration du client Discord
 const client = new Client({
