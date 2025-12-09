@@ -5,6 +5,10 @@ const OpenAI = require("openai");
 // 🧑‍💻 ID DU PROPRIÉTAIRE (TOI)
 const ownerId = "420265433367838721";
 
+// 🔢 NOM DE BASE DU SALON COMPTEUR DE MEMBRES
+// ➜ Crée un salon texte nommé EXACTEMENT : 👥│membres
+const memberCounterChannelBaseName = "👥│membres";
+
 // 🔧 Configuration du client Discord
 const client = new Client({
     intents: [
@@ -20,9 +24,49 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_KEY
 });
 
+// 🔁 Met à jour le salon compteur de membres pour une guilde
+async function updateMemberCount(guild) {
+    try {
+        if (!guild) return;
+
+        const count = guild.memberCount;
+        const newName = `👥│membres : ${count}`;
+
+        // On cherche un salon qui commence par "👥│membres" ou qui a le nom de base exact
+        let counterChannel = guild.channels.cache.find(
+            c => c.name.startsWith("👥│membres")
+        );
+
+        if (!counterChannel) {
+            counterChannel = guild.channels.cache.find(
+                c => c.name === memberCounterChannelBaseName
+            );
+        }
+
+        if (!counterChannel) {
+            console.log(`⚠️ Aucun salon compteur de membres trouvé dans ${guild.name}. Crée un salon texte nommé "${memberCounterChannelBaseName}".`);
+            return;
+        }
+
+        if (counterChannel.name !== newName) {
+            await counterChannel.setName(newName);
+            console.log(`✅ Compteur de membres mis à jour dans ${guild.name} : ${newName}`);
+        } else {
+            console.log(`ℹ️ Compteur de membres déjà à jour dans ${guild.name}.`);
+        }
+    } catch (err) {
+        console.error("❌ Erreur updateMemberCount :", err);
+    }
+}
+
 // 🟢 Quand le bot est connecté
 client.once(Events.ClientReady, () => {
     console.log(`🤖 Bot connecté en tant que ${client.user.tag}`);
+
+    // Met à jour le compteur pour toutes les guildes où le bot est présent
+    client.guilds.cache.forEach(guild => {
+        updateMemberCount(guild);
+    });
 });
 
 // 💬 Messages reçus
@@ -101,6 +145,9 @@ client.on(Events.MessageCreate, async (message) => {
 client.on(Events.GuildMemberAdd, async (member) => {
     console.log(`➕ Nouveau membre : ${member.user.tag}`);
 
+    // 👉 Met à jour le compteur de membres
+    updateMemberCount(member.guild);
+
     // 👉 Rôle auto
     const roleName = "🦸Communauté";
     const role = member.guild.roles.cache.find(r => r.name === roleName);
@@ -152,6 +199,12 @@ client.on(Events.GuildMemberAdd, async (member) => {
     } catch (err) {
         console.error("❌ Impossible d'envoyer le DM au propriétaire :", err);
     }
+});
+
+// ➖ Quand quelqu'un quitte, on met aussi à jour le compteur
+client.on(Events.GuildMemberRemove, async (member) => {
+    console.log(`➖ Membre parti : ${member.user.tag}`);
+    updateMemberCount(member.guild);
 });
 
 // 🚀 Connexion
