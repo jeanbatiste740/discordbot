@@ -8,104 +8,87 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers // nécessaire pour guildMemberAdd
+        GatewayIntentBits.GuildMembers
     ]
 });
 
-// 🔧 Configuration du client OpenAI (ChatGPT)
+// 🔧 Configuration OpenAI
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_KEY
 });
 
-// 🟢 Quand le bot est connecté
+// 🟢 Bot prêt
 client.once(Events.ClientReady, () => {
     console.log(`🤖 Bot connecté en tant que ${client.user.tag}`);
 });
 
-// 💬 Réponse IA uniquement dans un salon précis avec EMOJI
+// 💬 Réponse IA
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;
-
-    // 👉 Salon IA
     if (message.channel.name !== "『🤖』sacha-ai") return;
 
     const userText = message.content?.trim();
     if (!userText) return;
-    if (userText.length < 2) return;
-
-    console.log(`💬 ${message.author.tag} : ${userText}`);
 
     try {
-        // Effet "est en train d'écrire..."
         await message.channel.sendTyping();
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
-                {
-                    role: "system",
-                    content: "Tu es un assistant utile et gentil sur un serveur Discord. Tu parles en français."
-                },
-                {
-                    role: "user",
-                    content: userText
-                }
-            ],
-            max_tokens: 300
+                { role: "system", content: "Tu es un assistant utile et gentil sur un serveur Discord. Tu parles en français." },
+                { role: "user", content: userText }
+            ]
         });
 
-        const reply = completion.choices[0]?.message?.content || "Je ne sais pas quoi répondre pour le moment.";
+        const reply = completion.choices[0]?.message?.content || "Je ne sais pas quoi répondre.";
         await message.reply(reply);
 
     } catch (err) {
-        console.error("Erreur OpenAI / bot :", err);
-        await message.reply("😅 Oups, j'ai eu une erreur technique. Réessaie !");
+        console.error(err);
+        message.reply("Erreur IA.");
     }
 });
 
-// 👋 Message de bienvenue + rôle automatique avec CHANNEL.NAME (embed)
+// 👋 Bienvenue + Rôle + EMBED
 client.on(Events.GuildMemberAdd, async (member) => {
 
     console.log(`➕ Nouveau membre : ${member.user.tag}`);
 
-    // 👉 NOM DU ROLE À DONNER
+    // 👉 Rôle
     const roleName = "🦸Communauté";
     const role = member.guild.roles.cache.find(r => r.name === roleName);
 
     if (role) {
-        try {
-            await member.roles.add(role);
-            console.log(`✅ Rôle '${role.name}' donné à ${member.user.tag}`);
-        } catch (err) {
-            console.error("Erreur rôle :", err);
-        }
+        await member.roles.add(role).catch(console.error);
     } else {
-        console.log("⚠️ Rôle introuvable : vérifie le nom !");
+        console.log("❌ Rôle introuvable", roleName);
     }
 
-    // 👉 SALON DE BIENVENUE PAR NOM
+    // 👉 Salon de bienvenue
     const welcomeChannelName = "『👋』𝗖𝗢𝗨𝗖𝗢𝗨";
     const channel = member.guild.channels.cache.find(c => c.name === welcomeChannelName);
 
     if (!channel) {
-        console.log("⚠️ Salon de bienvenue introuvable : vérifie le nom !");
+        console.log("❌ Salon introuvable :", welcomeChannelName);
         return;
     }
 
-    // ⭐ EMBED DE BIENVENUE
-    const welcomeEmbed = new EmbedBuilder()
-        .setColor(0x5865F2) // Couleur (violet Discord)
-        .setTitle("✨ Un nouveau membre rejoint la communauté !")
-        .setDescription(
-            `👋 Bienvenue à toi, ${member.user} !\n\n` +
-            `Tu viens d’arriver sur **${member.guild.name}**.\n` +
-            `Installe-toi, lis les salons importants et n’hésite pas à dire coucou 😎`
-        )
+    // ⭐ EMBED
+    const embed = new EmbedBuilder()
+        .setColor("#5865F2")
+        .setTitle("🎉 Nouveau membre !")
+        .setDescription(`Bienvenue à toi ${member.user} ! Nous sommes super contents de t'accueillir 😄`)
         .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-        .setFooter({ text: "Merci de rejoindre la communauté 🦸" })
-        .setTimestamp(new Date());
+        .setTimestamp()
+        .setFooter({ text: "Bienvenue dans la communauté 🦸" });
 
-    channel.send({ embeds: [welcomeEmbed] }).catch(console.error);
+    try {
+        await channel.send({ embeds: [embed] });
+        console.log("📨 Embed envoyé !");
+    } catch (err) {
+        console.error("❌ ERREUR EMBED :", err);
+    }
 });
 
 // 🚀 Connexion
