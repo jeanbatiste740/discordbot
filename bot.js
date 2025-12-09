@@ -21,26 +21,23 @@ client.once(Events.ClientReady, () => {
     console.log(`🤖 Bot connecté en tant que ${client.user.tag}`);
 });
 
-// 💬 Quand quelqu'un envoie un message sur le serveur
+// 💬 Quand quelqu'un envoie un message
 client.on(Events.MessageCreate, async (message) => {
-    // On ignore les messages des bots
     if (message.author.bot) return;
 
-    // 👉 Le bot répond UNIQUEMENT dans CE salon
-    // ⚠️ Remplace "assistant-gpt" par le nom exact de TON salon
-    if (message.channel.name !== "『🤖』chat-gpt") return;
+    // 👉 ON VÉRIFIE LE SALON PAR ID (fiable à 100%)
+    if (message.channel.id !== "1447838699172663338") return;
 
-    // Texte du message
     const userText = message.content?.trim();
     if (!userText) return;
-
-    // Option : tu peux ignorer les messages très courts (genre "ok", "mdr")
     if (userText.length < 2) return;
 
-    // On affiche dans la console ce qui est reçu
     console.log(`💬 ${message.author.tag} : ${userText}`);
 
     try {
+        // ✍️ Le bot affiche "est en train d'écrire..."
+        await message.channel.sendTyping();
+
         // On envoie à ChatGPT
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
@@ -59,7 +56,6 @@ client.on(Events.MessageCreate, async (message) => {
 
         const reply = completion.choices[0]?.message?.content || "Je ne sais pas quoi répondre pour le moment.";
 
-        // Réponse dans le même salon
         await message.reply(reply);
 
     } catch (err) {
@@ -68,5 +64,5 @@ client.on(Events.MessageCreate, async (message) => {
     }
 });
 
-// 🚀 Connexion du bot à Discord
+// 🚀 Connexion
 client.login(process.env.DISCORD_TOKEN);
