@@ -5,7 +5,11 @@ const OpenAI = require("openai");
 // 🧑‍💻 ID DU PROPRIÉTAIRE (TOI)
 const ownerId = "420265433367838721";
 
-// 🔧 Configuration du client Discord
+// 🔢 NOM DE BASE DU SALON COMPTEUR DE MEMBRES
+// ➜ Crée un salon (texte OU vocal) nommé au départ : 👥│membres
+const memberCounterChannelBaseName = "👥│membres";
+
+// 🔧 Client Discord
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -15,23 +19,97 @@ const client = new Client({
     ]
 });
 
-// 🔧 Configuration du client OpenAI (ChatGPT)
+// 🔧 Client OpenAI (clé dans OPENAI_API_KEY sur Render)
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_KEY
+    apiKey: process.env.OPENAI_API_KEY
 });
 
-// 🟢 Quand le bot est connecté
+// 🔁 Met à jour le compteur de membres
+async function updateMemberCount(guild, feedbackChannel = null) {
+    try {
+        if (!guild) {
+            if (feedbackChannel) await feedbackChannel.send("⚠️ Impossible de trouver le serveur.");
+            return;
+        }
+
+        const count = guild.memberCount;
+        const newName = `👥│membres : ${count}`;
+
+        // On cherche un salon qui commence par "👥│membres"
+        let counterChannel = guild.channels.cache.find(
+            c => c.name.startsWith("👥│membres")
+        );
+
+        // Sinon on cherche le nom de base exact
+        if (!counterChannel) {
+            counterChannel = guild.channels.cache.find(
+                c => c.name === memberCounterChannelBaseName
+            );
+        }
+
+        if (!counterChannel) {
+            console.log(`⚠️ Aucun salon compteur trouvé dans ${guild.name}.`);
+            if (feedbackChannel) {
+                await feedbackChannel.send(
+                    `⚠️ Aucun salon compteur trouvé.\n` +
+                    `Crée un salon **texte ou vocal** appelé **${memberCounterChannelBaseName}**.`
+                );
+            }
+            return;
+        }
+
+        if (counterChannel.name === newName) {
+            console.log(`ℹ️ Compteur déjà à jour dans ${guild.name}.`);
+            if (feedbackChannel) {
+                await feedbackChannel.send(`ℹ️ Compteur déjà à jour : **${count} membres**.`);
+            }
+            return;
+        }
+
+        await counterChannel.setName(newName);
+        console.log(`✅ Compteur de membres mis à jour dans ${guild.name} : ${newName}`);
+        if (feedbackChannel) {
+            await feedbackChannel.send(`✅ Compteur mis à jour : **${count} membres**.`);
+        }
+    } catch (err) {
+        console.error("❌ Erreur updateMemberCount :", err);
+        if (feedbackChannel) {
+            await feedbackChannel.send(
+                "❌ Erreur lors de la mise à jour du compteur.\n" +
+                "Vérifie que le bot a la permission **Gérer les salons (Manage Channels)**."
+            );
+        }
+    }
+}
+
+// 🟢 Quand le bot est prêt
 client.once(Events.ClientReady, () => {
     console.log(`🤖 Bot connecté en tant que ${client.user.tag}`);
+
+    // Met à jour le compteur pour tous les serveurs où est le bot
+    client.guilds.cache.forEach(guild => {
+        updateMemberCount(guild);
+    });
 });
 
-// 💬 Messages reçus
+// 💬 Messages
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;
 
     console.log(`📩 #${message.channel.name} | ${message.author.tag} : ${message.content}`);
 
     const lowered = message.content.trim().toLowerCase();
+
+    // 🔁 COMMANDE DEBUG COMPTEUR : !membersupdate
+    if (lowered === "!membersupdate") {
+        if (!message.guild) {
+            await message.reply("❌ Cette commande doit être utilisée dans un serveur.");
+            return;
+        }
+        await message.reply("🔁 Mise à jour du compteur de membres en cours...");
+        await updateMemberCount(message.guild, message.channel);
+        return;
+    }
 
     // 🧪 COMMANDE TEST DM : !testdm
     if (lowered === "!testdm") {
@@ -67,7 +145,7 @@ client.on(Events.MessageCreate, async (message) => {
         return;
     }
 
-    // 💬 Réponse IA uniquement dans 『🤖』sacha-ai
+    // 💬 IA seulement dans 『🤖』sacha-ai
     if (message.channel.name !== "『🤖』sacha-ai") return;
 
     const userText = message.content?.trim();
@@ -100,6 +178,9 @@ client.on(Events.MessageCreate, async (message) => {
 // 👋 Bienvenue + rôle + DM au proprio
 client.on(Events.GuildMemberAdd, async (member) => {
     console.log(`➕ Nouveau membre : ${member.user.tag}`);
+
+    // 🔁 Met à jour le compteur de membres
+    updateMemberCount(member.guild);
 
     // 👉 Rôle auto
     const roleName = "🦸Communauté";
@@ -152,6 +233,12 @@ client.on(Events.GuildMemberAdd, async (member) => {
     } catch (err) {
         console.error("❌ Impossible d'envoyer le DM au propriétaire :", err);
     }
+});
+
+// ➖ Quand quelqu'un quitte, on met aussi à jour le compteur
+client.on(Events.GuildMemberRemove, async (member) => {
+    console.log(`➖ Membre parti : ${member.user.tag}`);
+    updateMemberCount(member.guild);
 });
 
 // 🚀 Connexion
